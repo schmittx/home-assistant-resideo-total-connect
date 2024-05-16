@@ -1,0 +1,11 @@
+arm_away_instant:
+  target:
+    entity:
+      integration: resideo_total_connect
+      domain: alarm_control_panel
+
+arm_home_instant:
+  target:
+    entity:
+      integration: resideo_total_connect
+      domain: alarm_control_panel

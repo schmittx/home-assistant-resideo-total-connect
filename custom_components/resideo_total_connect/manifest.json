@@ -1,0 +1,11 @@
+{
+  "domain": "resideo_total_connect",
+  "name": "Resideo Total Connect",
+  "codeowners": ["@schmittx"],
+  "config_flow": true,
+  "documentation": "https://github.com/schmittx/home-assistant-resideo-total-connect",
+  "iot_class": "cloud_polling",
+  "loggers": ["total_connect_client"],
+  "requirements": ["total-connect-client==2023.12.1"],
+  "version": "1.0.0"
+}

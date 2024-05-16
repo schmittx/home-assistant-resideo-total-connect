@@ -1,0 +1,7 @@
+{
+	"name": "Resideo Total Connect",
+	"content_in_root": false,
+	"homeassistant": "2024.5.0",
+	"iot_class": "Cloud Polling",
+	"render_readme": true
+}
