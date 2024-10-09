@@ -18,7 +18,7 @@ import homeassistant.helpers.config_validation as cv
 from total_connect_client.client import TotalConnectClient
 from total_connect_client.exceptions import AuthenticationError
 
-from .const import AUTO_BYPASS, CONF_CODE, CONF_USER_CODES, DOMAIN
+from .const import AUTO_BYPASS, CODE_REQUIRED, CONF_CODE, CONF_USER_CODES, DOMAIN
 
 PASSWORD_DATA_SCHEMA = vol.Schema({vol.Required(CONF_PASSWORD): cv.string})
 
@@ -199,7 +199,10 @@ class TotalConnectOptionsFlowHandler(OptionsFlow):
                     vol.Required(
                         AUTO_BYPASS,
                         default=self.config_entry.options.get(AUTO_BYPASS, False),
-                    ): bool
-                }
+                    ): bool,
+                    vol.Required(
+                        CODE_REQUIRED,
+                        default=self.config_entry.options.get(CODE_REQUIRED, False),
+                    ): bool,                }
             ),
         )

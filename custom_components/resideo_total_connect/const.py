@@ -5,6 +5,7 @@ from homeassistant.const import ATTR_MODEL
 
 ATTR_ZONES = "zones"
 AUTO_BYPASS = "auto_bypass_low_battery"
+CODE_REQUIRED = "code_required"
 CONF_CODE = "code"
 CONF_USER_CODES = "user_codes"
 DEFAULT_MANUFACTURER = "Resideo"

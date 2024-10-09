@@ -6,6 +6,7 @@ import logging
 from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelEntity,
     AlarmControlPanelEntityFeature,
+    CodeFormat,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
@@ -19,7 +20,7 @@ from homeassistant.const import (
     STATE_ALARM_TRIGGERED,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -27,8 +28,8 @@ from total_connect_client import ArmingHelper
 from total_connect_client.exceptions import BadResultCodeError, UsercodeInvalid
 from total_connect_client.location import TotalConnectLocation
 
-from . import TotalConnectDataUpdateCoordinator
-from .const import DOMAIN
+from .const import CODE_REQUIRED, DOMAIN
+from .coordinator import TotalConnectDataUpdateCoordinator
 from .entity import TotalConnectLocationEntity
 from .util import get_location_device_name
 
@@ -43,6 +44,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up a Total Connect alarm control panel entity based on a config entry."""
     coordinator: TotalConnectDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    code_required = entry.options.get(CODE_REQUIRED, False)
     entities: list[TotalConnectAlarmControlPanelEntity] = []
 
     for location in coordinator.client.locations.values():
@@ -54,6 +56,7 @@ async def async_setup_entry(
                     coordinator,
                     location,
                     partition_id,
+                    code_required,
                 )
             )
 
@@ -64,13 +67,13 @@ async def async_setup_entry(
 
     platform.async_register_entity_service(
         SERVICE_ALARM_ARM_AWAY_INSTANT,
-        {},
+        None,
         "async_alarm_arm_away_instant",
     )
 
     platform.async_register_entity_service(
         SERVICE_ALARM_ARM_HOME_INSTANT,
-        {},
+        None,
         "async_alarm_arm_home_instant",
     )
 
@@ -89,6 +92,7 @@ class TotalConnectAlarmControlPanelEntity(TotalConnectLocationEntity, AlarmContr
         coordinator: TotalConnectDataUpdateCoordinator,
         location: TotalConnectLocation,
         partition_id: int,
+        require_code: bool,
     ) -> None:
         """Initialize the Total Connect alarm control panel entity."""
         super().__init__(coordinator, location)
@@ -108,9 +112,14 @@ class TotalConnectAlarmControlPanelEntity(TotalConnectLocationEntity, AlarmContr
             self._attr_translation_placeholders = {"partition_id": str(partition_id)}
             self._attr_unique_id = f"{location.location_id}_{partition_id}"
 
+        self._attr_code_arm_required = require_code
+        if require_code:
+            self._attr_code_format = CodeFormat.NUMBER
+
     @property
     def state(self) -> str | None:
         """Return the state of the device."""
+        # State attributes can be removed in 2025.3
         attr = {
             "triggered_source": None,
 #            "triggered_zone": None,
@@ -147,92 +156,111 @@ class TotalConnectAlarmControlPanelEntity(TotalConnectLocationEntity, AlarmContr
 
     async def async_alarm_disarm(self, code: str | None = None) -> None:
         """Send disarm command."""
+        self._check_usercode(code)
         try:
             await self.hass.async_add_executor_job(self._disarm)
         except UsercodeInvalid as error:
             self.coordinator.config_entry.async_start_reauth(self.hass)
             raise HomeAssistantError(
-                "Total Connect user code is invalid. Did not disarm"
+                translation_domain=DOMAIN,
+                translation_key="disarm_invalid_code",
             ) from error
         except BadResultCodeError as error:
             raise HomeAssistantError(
-                f"Total Connect failed to disarm {self.device.name}."
+                translation_domain=DOMAIN,
+                translation_key="disarm_failed",
+                translation_placeholders={"device": self.device.name},
             ) from error
         await self.coordinator.async_request_refresh()
 
-    def _disarm(self, code=None):
+    def _disarm(self) -> None:
         """Disarm synchronous."""
         ArmingHelper(self._partition).disarm()
 
     async def async_alarm_arm_home(self, code: str | None = None) -> None:
         """Send arm home command."""
+        self._check_usercode(code)
         try:
             await self.hass.async_add_executor_job(self._arm_home)
         except UsercodeInvalid as error:
             self.coordinator.config_entry.async_start_reauth(self.hass)
             raise HomeAssistantError(
-                "Total Connect user code is invalid. Did not arm home"
+                translation_domain=DOMAIN,
+                translation_key="arm_home_invalid_code",
             ) from error
         except BadResultCodeError as error:
             raise HomeAssistantError(
-                f"Total Connect failed to arm home {self.device.name}."
+                translation_domain=DOMAIN,
+                translation_key="arm_home_failed",
+                translation_placeholders={"device": self.device.name},
             ) from error
         await self.coordinator.async_request_refresh()
 
-    def _arm_home(self):
+    def _arm_home(self) -> None:
         """Arm home synchronous."""
         ArmingHelper(self._partition).arm_stay()
 
     async def async_alarm_arm_away(self, code: str | None = None) -> None:
         """Send arm away command."""
+        self._check_usercode(code)
         try:
             await self.hass.async_add_executor_job(self._arm_away)
         except UsercodeInvalid as error:
             self.coordinator.config_entry.async_start_reauth(self.hass)
             raise HomeAssistantError(
-                "Total Connect user code is invalid. Did not arm away"
+                translation_domain=DOMAIN,
+                translation_key="arm_away_invalid_code",
             ) from error
         except BadResultCodeError as error:
             raise HomeAssistantError(
-                f"Total Connect failed to arm away {self.device.name}."
+                translation_domain=DOMAIN,
+                translation_key="arm_away_failed",
+                translation_placeholders={"device": self.device.name},
             ) from error
         await self.coordinator.async_request_refresh()
 
-    def _arm_away(self, code=None):
+    def _arm_away(self) -> None:
         """Arm away synchronous."""
         ArmingHelper(self._partition).arm_away()
 
     async def async_alarm_arm_night(self, code: str | None = None) -> None:
         """Send arm night command."""
+        self._check_usercode(code)
         try:
             await self.hass.async_add_executor_job(self._arm_night)
         except UsercodeInvalid as error:
             self.coordinator.config_entry.async_start_reauth(self.hass)
             raise HomeAssistantError(
-                "Total Connect user code is invalid. Did not arm night"
+                translation_domain=DOMAIN,
+                translation_key="arm_night_invalid_code",
             ) from error
         except BadResultCodeError as error:
             raise HomeAssistantError(
-                f"Total Connect failed to arm night {self.device.name}."
+                translation_domain=DOMAIN,
+                translation_key="arm_night_failed",
+                translation_placeholders={"device": self.device.name},
             ) from error
         await self.coordinator.async_request_refresh()
 
-    def _arm_night(self, code=None):
+    def _arm_night(self) -> None:
         """Arm night synchronous."""
         ArmingHelper(self._partition).arm_stay_night()
 
-    async def async_alarm_arm_home_instant(self, code: str | None = None) -> None:
+    async def async_alarm_arm_home_instant(self) -> None:
         """Send arm home instant command."""
         try:
             await self.hass.async_add_executor_job(self._arm_home_instant)
         except UsercodeInvalid as error:
             self.coordinator.config_entry.async_start_reauth(self.hass)
             raise HomeAssistantError(
-                "Total Connect user code is invalid. Did not arm home instant"
+                translation_domain=DOMAIN,
+                translation_key="arm_home_instant_invalid_code",
             ) from error
         except BadResultCodeError as error:
             raise HomeAssistantError(
-                f"Total Connect failed to arm home instant {self.device.name}."
+                translation_domain=DOMAIN,
+                translation_key="arm_home_instant_failed",
+                translation_placeholders={"device": self.device.name},
             ) from error
         await self.coordinator.async_request_refresh()
 
@@ -240,21 +268,35 @@ class TotalConnectAlarmControlPanelEntity(TotalConnectLocationEntity, AlarmContr
         """Arm home instant synchronous."""
         ArmingHelper(self._partition).arm_stay_instant()
 
-    async def async_alarm_arm_away_instant(self, code: str | None = None) -> None:
+    async def async_alarm_arm_away_instant(self) -> None:
         """Send arm away instant command."""
         try:
             await self.hass.async_add_executor_job(self._arm_away_instant)
         except UsercodeInvalid as error:
             self.coordinator.config_entry.async_start_reauth(self.hass)
             raise HomeAssistantError(
-                "Total Connect user code is invalid. Did not arm away instant"
+                translation_domain=DOMAIN,
+                translation_key="arm_away_instant_invalid_code",
             ) from error
         except BadResultCodeError as error:
             raise HomeAssistantError(
-                f"Total Connect failed to arm away instant {self.device.name}."
+                translation_domain=DOMAIN,
+                translation_key="arm_away_instant_failed",
+                translation_placeholders={"device": self.device.name},
             ) from error
         await self.coordinator.async_request_refresh()
 
-    def _arm_away_instant(self, code=None):
+    def _arm_away_instant(self):
         """Arm away instant synchronous."""
         ArmingHelper(self._partition).arm_away_instant()
+
+    def _check_usercode(self, code):
+        """Check if the run-time entered code matches configured code."""
+        if (
+            self._attr_code_arm_required
+            and self.coordinator.client.usercodes[self._location.location_id] != code
+        ):
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_pin",
+            )

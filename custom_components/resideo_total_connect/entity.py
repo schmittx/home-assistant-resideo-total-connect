@@ -7,8 +7,8 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from total_connect_client.location import TotalConnectLocation
 from total_connect_client.zone import TotalConnectZone
 
-from . import TotalConnectDataUpdateCoordinator
 from .const import DOMAIN
+from .coordinator import TotalConnectDataUpdateCoordinator
 from .util import (
     get_location_device_manufacturer,
     get_location_device_model,
