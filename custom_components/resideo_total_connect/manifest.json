@@ -6,6 +6,6 @@
   "documentation": "https://github.com/schmittx/home-assistant-resideo-total-connect",
   "iot_class": "cloud_polling",
   "loggers": ["total_connect_client"],
-  "requirements": ["total-connect-client==2024.5"],
-  "version": "1.1.1"
+  "requirements": ["total-connect-client==2025.1.4"],
+  "version": "1.1.2"
 }

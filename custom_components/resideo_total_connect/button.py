@@ -14,7 +14,6 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN
 from .coordinator import TotalConnectDataUpdateCoordinator
 from .entity import TotalConnectLocationEntity, TotalConnectZoneEntity
 
@@ -46,7 +45,7 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up a Total Connect button entity based on a config entry."""
-    coordinator: TotalConnectDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     entities: list[TotalConnectButtonEntity | TotalConnectZoneButtonEntity] = []
 
     for location_id, location in coordinator.client.locations.items():

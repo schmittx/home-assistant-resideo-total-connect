@@ -18,7 +18,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from total_connect_client.location import TotalConnectLocation
 from total_connect_client.zone import TotalConnectZone
 
-from .const import DOMAIN
 from .coordinator import TotalConnectDataUpdateCoordinator
 from .entity import TotalConnectLocationEntity, TotalConnectZoneEntity
 from .util import get_security_zone_device_class
@@ -111,7 +110,7 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up a Total Connect binary sensor entity based on a config entry."""
-    coordinator: TotalConnectDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     entities: list[TotalConnectBinarySensorEntity | TotalConnectZoneBinarySensorEntity] = []
 
     for location in coordinator.client.locations.values():
